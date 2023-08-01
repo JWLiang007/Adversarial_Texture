@@ -5,7 +5,7 @@ v2kwargs={
     'cfgfile': "./data/models/yolov2.cfg",
     'weightfile': "./data/models/yolov2.weights",
     'max_lab': 15,
-    'batch_size': 8,
+    'batch_size': 32,
     'old_fasion': True,
 }
 
@@ -83,8 +83,8 @@ args_TCEGA = {
     'pos': None,  # ['center', None]
     'tps_range': 0.1,
     'tps_canvas': 0.5,
-    'n_epochs': 2000,
-    'z_epochs': 2000,
+    'n_epochs': 30,
+    'z_epochs': 100,
     'learning_rate': 0.001,
     'learning_rate_z': 0.03,
     'DIM': 128,
@@ -94,13 +94,16 @@ args_TCEGA = {
     'pooling': 'median',
     'dim_start_epoch': 0,
     'det_epoch': 0,
-    'disc': 0.5,
-    'img_size': 416,
+    'disc': 1.0,
+    'img_size': 380,
     'eps': 1e-5,
     'tv_loss': 0,
+    'ctr_loss': 1,
     'gp': 0,
     'iou_thresh': 0.3,
     'conf_thresh': 0.01,
+    'recover': False
+
 }
 
 targs_RCA = {
@@ -145,7 +148,7 @@ targs_TCEGA = {
     'pixel_size': [1] * 2,
     'pooling': 'median',
     'img_size': 416,
-    'batch_size': 8,
+    'batch_size': 32,
 }
 
 kwargs_dict = {
