@@ -29,9 +29,14 @@ torch.backends.cudnn.deterministic = True
 torch.backends.cudnn.benchmark = False
 
 model2weight = {
-    'efb4':'/home/sysu/工作目录_梁嘉伟/code/dfd_bd/SelfBlendedImages/weights/FFraw.tar',
-    'resnet50':'/home/sysu/工作目录_梁嘉伟/code/dfd_bd/SelfBlendedImages/output/clean/sbi_resnet50_base_05_06_00_39_15/weights/95_0.9988_val.tar',
-    'inception_v3':'/home/sysu/工作目录_梁嘉伟/code/dfd_bd/SelfBlendedImages/output/clean/sbi_inception_v3_base_05_06_00_39_15/weights/96_0.9993_val.tar'
+    'efb4':'/data/.code/dfd_bd/SelfBlendedImages/weights/FFraw.tar',
+    'resnet50':'/data/.code/dfd_bd/SelfBlendedImages/output/clean/sbi_resnet50_base_05_06_00_39_15/weights/95_0.9988_val.tar',
+    'inception_v3':'/data/.code/dfd_bd/SelfBlendedImages/output/clean/sbi_inception_v3_base_05_06_00_39_15/weights/96_0.9993_val.tar'
+}
+model2layer = {
+    'efb4':'_fc',
+    'resnet50':'fc',
+    'inception_v3':'fc'
 }
 
 
@@ -48,6 +53,7 @@ parser.add_argument('--target', default=False, action='store_true')
 parser.add_argument('--skip_load_img', default=False, action='store_true')
 parser.add_argument('--gid', default=0, type=int, help='')
 parser.add_argument('--tv_loss_sign', default=0, type=int, help='')
+parser.add_argument('--blend_ratio', default=0.05, type=float, help='')
 
 pargs = parser.parse_args()
 
@@ -62,8 +68,9 @@ if pargs.suffix is None:
 
 device = torch.device('cuda',pargs.gid)
 
-darknet_model = load_models(**kwargs)
-darknet_model = darknet_model.eval().to(device)
+darknet_model = None
+# darknet_model = load_models(**kwargs)
+# darknet_model = darknet_model.eval().to(device)
 
 class_names = utils.load_class_names('./data/coco.names')
 img_dir_train = './data/INRIAPerson/Train/pos'
@@ -83,12 +90,18 @@ train_loader=torch.utils.data.DataLoader(train_dataset,
                     drop_last=True,
                     worker_init_fn=train_dataset.worker_init_fn
                     )
+
+def fc_forward_hook(module,_input,_output):
+    model.register_buffer('fc_features',_input[0])
+    
 if pargs.sbi_model == 'comb':
     model = list()
     for name,weight in model2weight.items():
         model.append(load_model(weight,device,name))
+        eval(f"model.net.{model2layer[name]}").register_forward_hook(fc_forward_hook)
 else:
-    model = load_model(pargs.sbi_weight,device,pargs.sbi_model)
+    model = load_model(model2weight[pargs.sbi_model],device,pargs.sbi_model)
+    eval(f"model.net.{model2layer[pargs.sbi_model]}").register_forward_hook(fc_forward_hook)
 # criterion=torch.nn.CrossEntropyLoss()
 # modules = dict(model.named_modules())
 # def regitster_hooks(_module):
@@ -219,8 +232,6 @@ def train_patch():
     return 0
 
 
-def fc_forward_hook(module,_input,_output):
-    model.register_buffer('fc_features',_input[0])
 
     
 
@@ -332,7 +343,7 @@ def train_EGA():
                 # images = r,f,r,f_t
                 images = torch.cat([img_batch,img_batch[lab_batch==0],img_t_batch[lab_batch==1]])
                 fit_coef = images[:batch_size,:,s_r:t_r,s_c:t_c].detach().clone()
-                images[:batch_size,:,s_r:t_r,s_c:t_c] = images[:batch_size,:,s_r:t_r,s_c:t_c] +adv_patch_tps* fit_coef * 0.025     
+                images[:batch_size,:,s_r:t_r,s_c:t_c] = images[:batch_size,:,s_r:t_r,s_c:t_c] +adv_patch_tps* fit_coef * pargs.blend_ratio     
                 images = torch.clip(images,0,1)
             else:
                 y_diff = (img_batch[_batch_size:] - img_batch[:_batch_size] )[...,s_r:t_r,s_c:t_c]
@@ -342,14 +353,14 @@ def train_EGA():
                 # images[:_batch_size] = images[_batch_size:].clone()
                 images = torch.cat((images, images[:_batch_size].clone()))
                 fit_coef = images[:_batch_size,:,s_r:t_r,s_c:t_c].detach().clone()
-                images[:_batch_size,:,s_r:t_r,s_c:t_c] = images[:_batch_size,:,s_r:t_r,s_c:t_c] +adv_patch_tps* fit_coef * 0.025
+                images[:_batch_size,:,s_r:t_r,s_c:t_c] = images[:_batch_size,:,s_r:t_r,s_c:t_c] +adv_patch_tps* fit_coef * pargs.blend_ratio
                 images = torch.clip(images,0,1)
                 # y_f = img_batch[_batch_size:]
                 # y_r_t =  img_batch[:_batch_size]
                 # y_r_t[...,s_r:t_r,s_c:t_c] = y_r_t[...,s_r:t_r,s_c:t_c]  +adv_patch_tps*0.05
                 # y_r_t = torch.clip(y_r_t,0,1)
 
-            model.net._fc.register_forward_hook(fc_forward_hook)
+           
             disc, pj, pm = gen.get_loss(adv_patch, z[:adv_patch.shape[0]], args.gp)
             tv_loss = tv * args.tv_loss
             disc_loss = disc * args.disc if epoch >= args.dim_start_epoch else disc * 0.0
@@ -471,7 +482,7 @@ def train_z(gen=None):
             if pargs.target : 
                 s_r , s_c = np.random.randint(0, img_batch.shape[-1] - adv_patch_tps.shape[-1],2) 
                 t_r, t_c = s_r + adv_patch_tps.shape[-1] , s_c + adv_patch_tps.shape[-1] 
-                img_batch[...,s_r:t_r,s_c:t_c] = img_batch[...,s_r:t_r,s_c:t_c] * 0.975 +adv_patch_tps*0.025
+                img_batch[...,s_r:t_r,s_c:t_c] = img_batch[...,s_r:t_r,s_c:t_c]  +adv_patch_tps*pargs.blend_ratio
                 output=model(img_batch)
                 # len_r = len(img_batch) //2 
                 # feats = model.get_buffer(buffer_key)

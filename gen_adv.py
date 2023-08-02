@@ -18,9 +18,14 @@ torch.backends.cudnn.deterministic = True
 torch.backends.cudnn.benchmark = False
 
 model2weight = {
-    'efb4':'/home/sysu/Workspace_jwl/code/dfd_bd/SelfBlendedImages/weights/FFraw.tar',
-    'resnet50':'/home/sysu/Workspace_jwl/code/dfd_bd/SelfBlendedImages/output/clean/sbi_resnet50_base_05_06_00_39_15/weights/95_0.9988_val.tar',
-    'inception_v3':'/home/sysu/Workspace_jwl/code/dfd_bd/SelfBlendedImages/output/clean/sbi_inception_v3_base_05_06_00_39_15/weights/96_0.9993_val.tar'
+    'efb4':'/data/.code/dfd_bd/SelfBlendedImages/weights/FFraw.tar',
+    'resnet50':'/data/.code/dfd_bd/SelfBlendedImages/output_bak/clean/sbi_resnet50_base_05_06_00_39_15/weights/95_0.9988_val.tar', # TODO path revise
+    'inception_v3':'/data/.code/dfd_bd/SelfBlendedImages/output_bak/clean/sbi_inception_v3_base_05_06_00_39_15/weights/96_0.9993_val.tar' # TODO path revise
+}
+model2layer = {
+    'efb4':'_fc',
+    'resnet50':'fc',
+    'inception_v3':'fc'
 }
 
 parser = argparse.ArgumentParser(description='PyTorch Training')
@@ -32,7 +37,7 @@ pargs = parser.parse_args()
 device = torch.device('cuda',pargs.gid)
 
 img_size=380
-batch_size=32
+batch_size=8
 train_dataset=SBI_ORI_Dataset(phase='train',image_size=img_size,comp='c23',prefix='')
 train_loader=torch.utils.data.DataLoader(train_dataset,
                     batch_size=batch_size,
@@ -44,20 +49,23 @@ train_loader=torch.utils.data.DataLoader(train_dataset,
                     worker_init_fn=train_dataset.worker_init_fn
                     )
 
+def fc_forward_hook(module,_input,_output):
+    model.register_buffer('fc_features',_input[0])
+    
+    
 if pargs.sbi_model == 'comb':
     model = list()
     for name,weight in model2weight.items():
-        model.append(load_model(weight,device,name))
+        _model = load_model(weight,device,name)
+        eval(f"_model.net.{model2layer[name]}").register_forward_hook(fc_forward_hook)
+        model.append(_model)
 else:
     model = load_model(model2weight[pargs.sbi_model],device,pargs.sbi_model)
+    eval(f"model.net.{model2layer[pargs.sbi_model]}").register_forward_hook(fc_forward_hook)
 
 atk = torchattacks.PGD_FEAT(model, eps=8/255, alpha=2/255, steps=5)
 
 
-def fc_forward_hook(module,_input,_output):
-    model.register_buffer('fc_features',_input[0])
-    
-model.net._fc.register_forward_hook(fc_forward_hook)
 def gen_adv_logit():
 
     for i , batch_data in  enumerate(tqdm(train_loader)):
@@ -84,7 +92,7 @@ def gen_adv_feat():
             if ori_h > 0 and ori_w > 0:
                 out_img = cv2.resize(out_img, [ori_w, ori_h])
                 img_ori[j][coord[j][0]:coord[j][1], coord[j][2]:coord[j][3]] = out_img
-            out_path = filename[j].replace('frames','frames_adv_feat')
+            out_path = filename[j].replace('frames',f'frames_adv_feat_{pargs.sbi_model}')
             os.makedirs(os.path.dirname(out_path),exist_ok=True)
             Image.fromarray(img_ori[j]).save(out_path)
 
