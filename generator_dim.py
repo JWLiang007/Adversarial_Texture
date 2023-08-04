@@ -201,15 +201,15 @@ class GAN_dis(nn.Module):
         return loss
     
     # l2 
-    def get_loss_ctr_1(self, model, image_batch):
+    def get_loss_ctr_1(self, model, image_batch, key = None):
         out = model(image_batch)
         batch_size =  image_batch.shape[0]//4
-        fc_features = model.get_buffer('fc_features')
+        fc_features = eval(f"model.net.{key}").get_buffer('fc_features')
         loss = F.mse_loss(fc_features[batch_size:2*batch_size], fc_features[2*batch_size:3*batch_size] )    
         loss += -F.mse_loss(fc_features[batch_size:2*batch_size], fc_features[-batch_size:])    
         # loss = F.triplet_margin_loss(fc_features[batch_size:2*batch_size], fc_features[2*batch_size:3*batch_size],
         #                             fc_features[-batch_size:], margin=10000, reduction='mean')    
-        loss += - F.mse_loss(fc_features[2*batch_size:3*batch_size], fc_features[:batch_size]) 
+        # loss += - F.mse_loss(fc_features[2*batch_size:3*batch_size], fc_features[:batch_size]) 
         return loss
     
     def get_loss_ctr(self, model, image_batch, lab_batch):

@@ -17,8 +17,9 @@
 # python training_texture.py --suffix exp_L_triplelet_l1  --target  --gid 1  --sbi_weight /home/sysu/Workspace_jwl/code/dfd_bd/SelfBlendedImages/weights/FFraw.tar   
 # python training_texture.py --suffix exp_L_triplelet_second  --target  --gid 2  --sbi_weight /home/sysu/Workspace_jwl/code/dfd_bd/SelfBlendedImages/weights/FFraw.tar   
 # python training_texture.py --suffix exp_L_triplelet_first+second_jsd  --target  --gid 3  --sbi_weight /home/sysu/Workspace_jwl/code/dfd_bd/SelfBlendedImages/weights/FFraw.tar   
-python training_texture.py --suffix exp_L_triplelet_first+second_jsd_inception_v3  --target  --gid 3  --sbi_model inception_v3 & 
-python training_texture.py --suffix exp_L_triplelet_first+second_jsd_resnet_50  --target  --gid 1  --sbi_model resnet50 & 
+# python training_texture.py --suffix exp_L_triplelet_first_jsd_inception_v3  --target  --gid 3  --sbi_model inception_v3 & 
+# python training_texture.py --suffix exp_L_triplelet_first_jsd_resnet_50  --target  --gid 1  --sbi_model resnet50 & 
+python training_texture.py --suffix exp_L_triplelet_first_jsd_comb  --target  --gid 2  --sbi_model comb & 
 # python training_texture.py --suffix exp_L_triplelet_first_jsd  --target  --gid 2  --sbi_weight /home/sysu/Workspace_jwl/code/dfd_bd/SelfBlendedImages/weights/FFraw.tar   
 # python training_texture.py --suffix exp_L_triplelet_first_jsd_br_0_025  --target  --gid 3  --sbi_weight /home/sysu/Workspace_jwl/code/dfd_bd/SelfBlendedImages/weights/FFraw.tar   
 # python training_texture.py --suffix exp_L_triplelet_first_first_jsd  --target  --gid 1  --sbi_weight /home/sysu/Workspace_jwl/code/dfd_bd/SelfBlendedImages/weights/FFraw.tar   

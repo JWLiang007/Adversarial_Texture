@@ -29,9 +29,9 @@ torch.backends.cudnn.deterministic = True
 torch.backends.cudnn.benchmark = False
 
 model2weight = {
-    'efb4':'/data/.code/dfd_bd/SelfBlendedImages/weights/FFraw.tar',
-    'resnet50':'/data/.code/dfd_bd/SelfBlendedImages/output/clean/sbi_resnet50_base_05_06_00_39_15/weights/95_0.9988_val.tar',
-    'inception_v3':'/data/.code/dfd_bd/SelfBlendedImages/output/clean/sbi_inception_v3_base_05_06_00_39_15/weights/96_0.9993_val.tar'
+    'efb4':'../SelfBlendedImages/weights/FFraw.tar',
+    'resnet50':'../SelfBlendedImages/output/clean/sbi_resnet50_base_05_06_00_39_15/weights/95_0.9988_val.tar',
+    'inception_v3':'../SelfBlendedImages/output/clean/sbi_inception_v3_base_05_06_00_39_15/weights/96_0.9993_val.tar'
 }
 model2layer = {
     'efb4':'_fc',
@@ -92,13 +92,15 @@ train_loader=torch.utils.data.DataLoader(train_dataset,
                     )
 
 def fc_forward_hook(module,_input,_output):
-    model.register_buffer('fc_features',_input[0])
+    module.register_buffer('fc_features',_input[0])
     
 if pargs.sbi_model == 'comb':
-    model = list()
+    model = dict()
     for name,weight in model2weight.items():
-        model.append(load_model(weight,device,name))
-        eval(f"model.net.{model2layer[name]}").register_forward_hook(fc_forward_hook)
+        _model = load_model(weight,device,name)
+        eval(f"_model.net.{model2layer[name]}").register_forward_hook(fc_forward_hook)
+        model[name] = _model
+        
 else:
     model = load_model(model2weight[pargs.sbi_model],device,pargs.sbi_model)
     eval(f"model.net.{model2layer[pargs.sbi_model]}").register_forward_hook(fc_forward_hook)
@@ -340,7 +342,7 @@ def train_EGA():
                 y_diff = None
             elif pargs.target :
                 y_diff = 1
-                # images = r,f,r,f_t
+                # images = r+t,f+t,r,f_t
                 images = torch.cat([img_batch,img_batch[lab_batch==0],img_t_batch[lab_batch==1]])
                 fit_coef = images[:batch_size,:,s_r:t_r,s_c:t_c].detach().clone()
                 images[:batch_size,:,s_r:t_r,s_c:t_c] = images[:batch_size,:,s_r:t_r,s_c:t_c] +adv_patch_tps* fit_coef * pargs.blend_ratio     
@@ -365,11 +367,17 @@ def train_EGA():
             tv_loss = tv * args.tv_loss
             disc_loss = disc * args.disc if epoch >= args.dim_start_epoch else disc * 0.0
 
+            ctr_loss =disc.new_zeros(1)
             if  pargs.skip_load_img : 
                 ctr_loss =disc.new_zeros(1)
             elif pargs.target:
                 # ctr_loss = args.ctr_loss * gen.get_loss_ctr_1(model,images) 
-                ctr_loss = args.ctr_loss * gen.get_loss_ctr_1(model,images) 
+                if type(model) == dict:
+                    for name, _model in model.items():
+                        ctr_loss += args.ctr_loss * gen.get_loss_ctr_1(_model,images,model2layer[name]) 
+                    ctr_loss = ctr_loss /3
+                else:
+                    ctr_loss = args.ctr_loss * gen.get_loss_ctr_1(_model,images,model2layer[name]) 
             else:
                 ctr_loss = args.ctr_loss * gen.get_loss_ctr(model,images,lab_batch) 
 
