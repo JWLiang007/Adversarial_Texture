@@ -5,10 +5,10 @@ import numpy as np
 
 
 class Generator_dis(nn.Module):
-    def __init__(self, DIM=128, z_dim=16, img_shape=(324, 324), cl_tensor=None):
+    def __init__(self, DIM=128, z_dim=16, img_shape=(324, 324), final_shape = [9, 9], cl_tensor=None):
         super(Generator_dis, self).__init__()
         self.DIM = DIM
-        self.final_shape = [9, 9]
+        self.final_shape = final_shape
         self.final_dim = np.prod(self.final_shape)
         self.img_shape = img_shape
         preprocess = nn.Sequential(
@@ -58,11 +58,11 @@ class Generator_dis(nn.Module):
 
 
 class Discriminator_dis(nn.Module):
-    def __init__(self, DIM=128, img_shape=(324, 324), cl_tensor=None):
+    def __init__(self, DIM=128, img_shape=(324, 324), final_shape= [9, 9], cl_tensor=None):
         super(Discriminator_dis, self).__init__()
         self.DIM = DIM
         # self.final_shape = (np.array(img_shape) / 32).astype(np.int64)
-        self.final_shape = [9, 9]
+        self.final_shape = final_shape
         self.final_dim = np.prod(self.final_shape)
         # self.img_shape  = self.final_shape * 32
         self.img_shape = img_shape
@@ -103,63 +103,17 @@ class Discriminator_dis(nn.Module):
         return output
 
 
-class Discriminator_ctr(nn.Module):
-    def __init__(self, DIM=128, img_shape=(324, 324), cl_tensor=None):
-        super(Discriminator_ctr, self).__init__()
-        self.DIM = DIM
-        # self.final_shape = (np.array(img_shape) / 32).astype(np.int64)
-        self.final_shape = [9, 9]
-        self.final_dim = np.prod(self.final_shape)
-        # self.img_shape  = self.final_shape * 32
-        self.img_shape = img_shape
-        self.main = nn.Sequential(
-            # nn.Conv2d(self.cl_num, DIM, 3, 2, padding=3),
-            nn.Conv2d(3, DIM, 4, 2, padding=3),
-            nn.LeakyReLU(),
-            nn.Conv2d(DIM, 2 * DIM, 4, 2, padding=3),
-            nn.LeakyReLU(),
-            nn.Conv2d(2 * DIM, 2 * DIM, 4, 2, padding=3),
-            nn.LeakyReLU(),
-            nn.Conv2d(2 * DIM, 2 * DIM, 4, 2, padding=3),
-            nn.LeakyReLU(),
-            nn.Conv2d(2 * DIM, 2 * DIM, 4, 2, padding=3),
-            nn.LeakyReLU(),
-            nn.Conv2d(2 * DIM, 5 * DIM, 4, 2, padding=3),
-            nn.LeakyReLU(),
-        )
-
-        self.block2 = nn.Sequential(
-            nn.Conv2d(5 * DIM, DIM, 1, 1),
-            nn.LeakyReLU(),
-        )
-
-        self.linear = nn.Sequential(nn.Linear(self.final_dim * DIM, 512),
-                                    nn.LeakyReLU(),
-                                    nn.Linear(512, 512),
-                                    # nn.LeakyReLU(),
-                                    # nn.Linear(512, 2),
-                                    )
-
-    def forward(self, input, z=None):
-        output = self.main(input)
-        # output = torch.cat([output, z], dim=1)
-        output = self.block2(output)
-        output = output.view(output.shape[0], self.final_dim * self.DIM)
-        output = self.linear(output)
-        return output
-
 
 class GAN_dis(nn.Module):
-    def __init__(self, DIM=128, z_dim=16, img_shape=(324, 324), cl_tensor=None, args=None):
+    def __init__(self, DIM=128, z_dim=16, img_shape=(324, 324), final_shape=(9,9), cl_tensor=None, args=None):
         super(GAN_dis, self).__init__()
         self.DIM = DIM
         self.z_dim = z_dim
-        self.final_shape = [9, 9]
+        self.final_shape = final_shape
         self.final_dim = np.prod(self.final_shape)
         self.img_shape = img_shape
-        self.G = Generator_dis(self.DIM, self.z_dim, self.img_shape)
-        self.D = Discriminator_dis(self.DIM, self.img_shape)
-        self.D_ctr = Discriminator_ctr(self.DIM, self.img_shape)
+        self.G = Generator_dis(self.DIM, self.z_dim, self.img_shape,final_shape=final_shape)
+        self.D = Discriminator_dis(self.DIM, self.img_shape,final_shape=final_shape)
 
     def forward(self, input):
         pass

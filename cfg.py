@@ -83,18 +83,18 @@ args_TCEGA = {
     'pos': None,  # ['center', None]
     'tps_range': 0.1,
     'tps_canvas': 0.5,
-    'n_epochs': 30,
+    'n_epochs': 10,
     'z_epochs': 100,
     'learning_rate': 0.001,
     'learning_rate_z': 0.03,
     'DIM': 128,
     'z_dim': 128,
-    'z_size': 9,
-    'patch_size': [324] * 2,
+    'z_size': 5,    # 9 
+    'patch_size': [68] * 2, # 324 *2
     'pooling': 'median',
     'dim_start_epoch': 0,
     'det_epoch': 0,
-    'disc': 1.0,
+    'disc': 0.0,
     'img_size': 380,
     'eps': 1e-5,
     'tv_loss': 0,
